@@ -3,8 +3,6 @@
 #include "FirebaseESP8266.h" // Install Firebase ESP8266 library
 #include <DHT.h> // Install DHT11 Library and Adafruit Unified Sensor Library
 #include <ESP8266WiFi.h>
-#include <SoftwareSerial.h>
-SoftwareSerial espSerial(16, 5);
 #define FIREBASE_HOST                                                          \
   "firstproject-99bb2-default-rtdb.asia-southeast1.firebasedatabase.app/" // Without
                                                                           // http://
@@ -17,6 +15,8 @@ SoftwareSerial espSerial(16, 5);
 
 #define DHTPIN 2 // Connect Data pin of DHT to D2
 int led = 5;     // Connect LED to D5
+
+bool stopWhile = false;
 
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
@@ -31,40 +31,59 @@ int US2_reading = 0;
 void refine_value(String tempString) {
   US1_reading = 0;
   US2_reading = 0;
-  Serial.println("String working on : " + tempString);
+  Serial.println("String working on : " + tempString + ".");
   char tempChar[(tempString.length()) + 1];
   tempString.toCharArray(tempChar, (tempString.length()) + 1);
   int i;
   String returnString;
   int writedState = 0;
-  if (tempChar[0] != 'D') {
+  if (tempChar[0] != 'x') {
     // its not our string
     Serial.println("unknow string!");
-  } else if (tempChar[1] == '1') {
+  } else {
     Serial.println("Working fine...");
+    writedState = 1;
     for (i = 1; i < ((tempString.length()) + 1) && tempChar[i] != '~'; i++) {
-      if (tempChar[i] == ':') {
-        writedState++;
+      if (tempChar[i] == 'x') {
+        writedState = 1;
+        US1_reading = 0;
       }
+      if (tempChar[i] == 'y') {
+        writedState = 2;
+        US2_reading = 0;
+      }
+      // if (tempChar[i] == '~') {
+      //   if (tempChar[i + 1] != '.') {
+      //     US1_reading = 0;
+      //     US2_reading = 0;
+      //   }
+      // }
+
       if (tempChar[i] >= '0' && tempChar[i] <= '9') {
         if (writedState == 1) {
-          US1_reading += (int)tempChar[i];
+          US1_reading += tempChar[i] - '0';
           US1_reading *= 10;
+          Serial.print(String(US1_reading) + "-.");
         } else if (writedState == 2) {
-          US2_reading += (int)tempChar[i];
+          US2_reading += tempChar[i] - '0';
           US2_reading *= 10;
+          Serial.print(String(US2_reading) + "-");
         }
       }
     }
+    Serial.println();
     US1_reading /= 10;
     US2_reading /= 10;
+    Serial.flush();
   }
+  Serial.println("distance 1 : " + String(US1_reading));
+  Serial.println("distance 2 : " + String(US2_reading));
+  stopWhile = false;
 }
 
 void setup() {
 
   Serial.begin(115200);
-  espSerial.begin(115200);
   dht.begin();
   pinMode(led, OUTPUT);
 
@@ -108,12 +127,12 @@ void sensorUpdate() {
   Serial.println(F("F  "));
 
   if (Firebase.setFloat(firebaseData, "/FirebaseIOT/temperature", t)) {
-    Serial.println("PASSED");
-    Serial.println("PATH: " + firebaseData.dataPath());
-    Serial.println("TYPE: " + firebaseData.dataType());
-    Serial.println("ETag: " + firebaseData.ETag());
-    Serial.println("------------------------------------");
-    Serial.println();
+    // Serial.println("PASSED");
+    // Serial.println("PATH: " + firebaseData.dataPath());
+    // Serial.println("TYPE: " + firebaseData.dataType());
+    // Serial.println("ETag: " + firebaseData.ETag());
+    // Serial.println("------------------------------------");
+    // Serial.println();
   } else {
     Serial.println("FAILED");
     Serial.println("REASON: " + firebaseData.errorReason());
@@ -122,12 +141,12 @@ void sensorUpdate() {
   }
 
   if (Firebase.setFloat(firebaseData, "/FirebaseIOT/humidity", h)) {
-    Serial.println("PASSED");
-    Serial.println("PATH: " + firebaseData.dataPath());
-    Serial.println("TYPE: " + firebaseData.dataType());
-    Serial.println("ETag: " + firebaseData.ETag());
-    Serial.println("------------------------------------");
-    Serial.println();
+    // Serial.println("PASSED");
+    // Serial.println("PATH: " + firebaseData.dataPath());
+    // Serial.println("TYPE: " + firebaseData.dataType());
+    // Serial.println("ETag: " + firebaseData.ETag());
+    // Serial.println("------------------------------------");
+    // Serial.println();
   } else {
     Serial.println("FAILED");
     Serial.println("REASON: " + firebaseData.errorReason());
@@ -139,6 +158,7 @@ void sensorUpdate() {
                           US1_reading)) {
       Serial.println("U_Distance 1 updated!");
       globle_HC_1 = US1_reading;
+      Serial.print(F("Pass1"));
     } else {
       Serial.println("U_Distance 1 not updated successfully!");
     }
@@ -148,6 +168,7 @@ void sensorUpdate() {
                           US2_reading)) {
       Serial.println("U_Distance 2 updated!");
       globle_HC_2 = US2_reading;
+      Serial.print(F("Pass1"));
     } else {
       Serial.println("U_Distance 2 not updated successfully!");
     }
@@ -156,15 +177,23 @@ void sensorUpdate() {
 bool dataEnterd = false;
 void loop() {
   sensorUpdate();
-  while (espSerial.available()) {
-    char c = espSerial.read(); // gets one byte from serial buffer
-    readString += c;        // makes the String readString
-    delay(2); // slow looping to allow buffer to fill with next character
-    dataEnterd = true;
+
+  while ((Serial.available() >= 1) && (!stopWhile)) {
+    char c = Serial.read(); // gets one byte from serial buffer
+    if (c != '~') {
+      readString += c;
+      delay(2); // slow looping to allow buffer to fill with next character
+      dataEnterd = true;
+    } else {
+      stopWhile = true;
+      Serial.flush();
+      delay(1500);
+    }
   }
   if (dataEnterd) {
     refine_value(readString);
     dataEnterd = false;
+    Serial.flush();
   }
 
   if (Firebase.getString(ledData, "/FirebaseIOT/led")) {
