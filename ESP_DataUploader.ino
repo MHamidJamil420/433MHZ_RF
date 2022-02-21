@@ -37,13 +37,14 @@ void refine_value(String tempString) {
   int i;
   String returnString;
   int writedState = 0;
-  if (tempChar[0] != 'x') {
-    // its not our string
-    Serial.println("unknow string!");
-  } else {
-    Serial.println("Working fine...");
-    writedState = 1;
-    for (i = 1; i < ((tempString.length()) + 1) && tempChar[i] != '~'; i++) {
+  // if (tempChar[0] != 'x') {
+  //   // its not our string
+  //   Serial.println("unknow string!");
+  // } else
+  {
+    // Serial.println("Working fine...");
+    writedState = 0;
+    for (i = 0; i < ((tempString.length()) + 1) && tempChar[i] != '~'; i++) {
       if (tempChar[i] == 'x') {
         writedState = 1;
         US1_reading = 0;
@@ -153,7 +154,7 @@ void sensorUpdate() {
     Serial.println("------------------------------------");
     Serial.println();
   }
-  if (globle_HC_1 != US1_reading) {
+  if (globle_HC_1 != US1_reading && US1_reading != 0) {
     if (Firebase.setFloat(firebaseData, "/FirebaseIOT/Ultrasound_1",
                           US1_reading)) {
       Serial.println("U_Distance 1 updated!");
@@ -163,7 +164,7 @@ void sensorUpdate() {
       Serial.println("U_Distance 1 not updated successfully!");
     }
   }
-  if (globle_HC_2 != US2_reading) {
+  if (globle_HC_2 != US2_reading && US2_reading != 0) {
     if (Firebase.setFloat(firebaseData, "/FirebaseIOT/Ultrasound_2",
                           US2_reading)) {
       Serial.println("U_Distance 2 updated!");
@@ -192,6 +193,7 @@ void loop() {
   }
   if (dataEnterd) {
     refine_value(readString);
+    readString = "";
     dataEnterd = false;
     Serial.flush();
   }
