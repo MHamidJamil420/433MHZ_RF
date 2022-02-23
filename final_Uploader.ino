@@ -13,9 +13,8 @@
 #define WIFI_SSID "Room102"
 #define WIFI_PASSWORD "Room@102_6"
 
-
 #define DHTPIN 2 // Connect Data pin of DHT to D2
-int led = 5;     // Connect LED to D5
+int led = LED_BUILTIN;
 
 #define echoPin 4 //  attach pin D2 Arduino to pin Echo of HC-SR04
 #define trigPin 5 // attach pin D3 Arduino to pin Trig of HC-SR04
@@ -31,6 +30,7 @@ String readString;
 // Define FirebaseESP8266 data object
 FirebaseData firebaseData;
 FirebaseData ledData;
+bool DHT_Error_reported = false;
 
 FirebaseJson json;
 
@@ -67,8 +67,13 @@ void sensorUpdate() {
 
   // Check if any reads failed and exit early (to try again).
   if (isnan(h) || isnan(t) || isnan(f)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
-    return;
+    if (!DHT_Error_reported) {
+      Serial.println(
+          F("Failed to read from DHT sensor!\n continuing without DHT sensor"));
+      DHT_Error_reported = true;
+    }
+  } else {
+    DHT_Error_reported = false;
   }
   //========================================
 
@@ -95,6 +100,14 @@ void sensorUpdate() {
   Serial.print(F("C  ,"));
   Serial.print(f);
   Serial.println(F("F  "));
+
+  if (Firebase.getString(ledData, "/FirebaseIOT/led2")) {
+    // Serial.println(ledData.stringData());
+    if (ledData.stringData() == "1") {
+    } else if (ledData.stringData() == "0") {
+      Firebase.setString(ledData, "/FirebaseIOT/led2", "1");
+    }
+  }
 
   if (Firebase.setFloat(firebaseData, "/FirebaseIOT/temperature", t)) {
     // Serial.println("PASSED");
