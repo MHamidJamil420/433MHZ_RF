@@ -13,6 +13,7 @@
 #define WIFI_SSID "Room102"
 #define WIFI_PASSWORD "Room@102_6"
 
+
 #define DHTPIN 2 // Connect Data pin of DHT to D2
 int led = 5;     // Connect LED to D5
 

@@ -11,55 +11,56 @@
 #define WIFI_SSID "Room102"
 #define WIFI_PASSWORD "Room@102_6"
 
-int led = 5; // Connect LED to D5
-
-//.....................................................
-String getString() {
-  String sdata = "";
-  char ch = '0';
-  bool condit = true;
-  while (condit) {
-    // if (Serial.available() > 0)
-    // {
-    ch = Serial.read(); // get the character
-    delay(20);
-    if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-        (ch >= '0' && ch <= '9') || (ch == '=')) {
-      sdata += ch;
-
-    } else if (ch == '!') {
-      Serial.println("Bypassed");
-      loop();
-      return "NULL";
-    } else if (ch == '~') {
-      Serial.println("Sr we got ");
-      Serial.println(sdata);
-      condit = false;
-      // FileNameLoop = sdata;
-    } else if (ch == '`') {
-      Serial.println("Str cleared");
-      sdata = "";
-      // Serial.println(sdata);
-      // condit = false;
-      // FileNameLoop = sdata;
-    }
-    // }
-  }
-  return sdata;
-}
-//.....................................................
-
 // Define FirebaseESP8266 data object
 FirebaseData firebaseData;
 FirebaseData ledData;
 
+int led = LED_BUILTIN;
+
+int softMargin = 2;
+int global_hc_1_reading = 0;
+
 FirebaseJson json;
 
+int buzzer = 4;
+void checkHost() {
+  Firebase.setFloat(firebaseData, "/FirebaseIOT/led2", 0);
+  Serail.println("Wait...!");
+  delay(1000);
+  int timeOut;
+  for (timeOut = 25; timeOut > 0; timeout--) {
+    if (Firebase.getString(ledData, "/FirebaseIOT/led2")) {
+      // Serial.print(ledData.stringData());
+      if (ledData.stringData() == "1") {
+        Serial.print(ledData.stringData());
+        digitalWrite(led, HIGH);
+        timeOut = 0;
+        Serial.println("Host is working!");
+
+      } else if (ledData.stringData() == "0") {
+        digitalWrite(led, LOW);
+        if (timeOut == 25) {
+          Serial.print("failed! Host is down, watinting for host");
+        }
+        Serial.print(".");
+        delay(1000);
+      }
+    }
+  }
+}
+void Alert(int delaY, int alertFor) {
+  for (; alertFor > 0; alertFor -= (delaY * 2)) {
+    digitalWrite(buzzer, HIGH);
+    delay(delaY);
+    digitalWrite(buzzer, LOW);
+    delay(delaY);
+  }
+}
 void setup() {
 
   Serial.begin(115200);
-
   pinMode(led, OUTPUT);
+  pinMode(buzzer, OUTPUT);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to Wi-Fi");
@@ -74,48 +75,29 @@ void setup() {
 
   Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
   Firebase.reconnectWiFi(true);
+  Serial.println("Checking host status!");
+  checkHost();
 }
 
 void sensorUpdate() {
-  // Reading temperature or humidity takes about 250 milliseconds!
-  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
 
-  float h, t;
+  int distance = 0;
 
-  if (Firebase.getString(firebaseData, "/FirebaseIOT/temperature")) {
-    Serial.println("Temperature : " + firebaseData.stringData() + " C");
+  if (Firebase.getString(firebaseData, "/FirebaseIOT/Ultrasound_1")) {
+    Serial.println("Distance : " + firebaseData.stringData() + " in");
+    distance = int(firebaseData.stringData());
   } else {
-    Serial.println("temperature error!");
+    Serial.println("Distance error!");
   }
 
-  if (Firebase.getString(firebaseData, "/FirebaseIOT/humidity")) {
-    Serial.println("Humidity : " + firebaseData.stringData() + " %");
-  } else {
-    Serial.println("humidity error!");
+  if (!((distance >= global_hc_1_reading - softMargin) &&
+        (distance <= global_hc_1_reading + softMargin))) {
+    global_hc_1_reading = distance;
+    Alert();
   }
 }
-int num1 = 0;
 void loop() {
+  checkHost();
   sensorUpdate();
-  if (Serial.available() >= 1) {
-    // num1 = getString().toInt();
-    num1 = Serial.parseInt();
-    num1--;
-    Serial.println("setting led value : " + String(num1));
-    if (Firebase.setFloat(firebaseData, "/FirebaseIOT/led", num1)) {
-      Serial.println("Led value : " + String(num1));
-    } else {
-      Serial.println("Led value error!");
-    }
-  }
-
-  if (Firebase.getString(ledData, "/FirebaseIOT/led2")) {
-    Serial.println(ledData.stringData());
-    if (ledData.stringData() == "1") {
-      digitalWrite(led, HIGH);
-    } else if (ledData.stringData() == "0") {
-      digitalWrite(led, LOW);
-    }
-  }
   delay(100);
 }
