@@ -2,11 +2,7 @@
 #include <ESP8266WiFi.h>
 
 #define FIREBASE_HOST                                                          \
-  "firstproject-99bb2-default-rtdb.asia-southeast1.firebasedatabase.app/" // Without
-                                                                          // http://
-                                                                          // or
-                                                                          // https://
-                                                                          // schemes
+  "firstproject-99bb2-default-rtdb.asia-southeast1.firebasedatabase.app/"
 #define FIREBASE_AUTH "yEf6VGsxnPXyfKp0B0sUeuWBQCxX0VqWRGEk6VPR"
 #define WIFI_SSID "Room102"
 #define WIFI_PASSWORD "Room@102_6"
@@ -93,7 +89,7 @@ void sensorUpdate() {
   if (!((distance >= global_hc_1_reading - softMargin) &&
         (distance <= global_hc_1_reading + softMargin))) {
     global_hc_1_reading = distance;
-    Alert();
+    Alert(100,1000);
   }
 }
 void loop() {
